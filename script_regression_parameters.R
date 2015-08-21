@@ -163,13 +163,5 @@ p4
 
 
 
-As we can see from the results obtained in this post, especially for simple toy examples, 
-the three methods return basically the same solution. Especially considering the never ending 
-discussions between frequentists and Bayesians, deciding which way to go might be more of a philosophical 
-question than anything else. However, there are clear advantages and disadvantages to each one of 
-these techniques, that I will try to summarize here:
-  
-  
-  CHECK ALSO MY NOTES ON THE NOTEBOOK
 
 
