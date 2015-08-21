@@ -21,9 +21,7 @@ empty <- ggplot() + geom_point(aes(1, 1), colour = "white") +
 
 # scatterplot of x and y variables
 scatter <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
-  #scale_color_manual(values = c("orange", "purple")) + 
   scale_x_continuous("Age") + 
-  stat_smooth(method = "lm") +
   scale_y_continuous("Heart Rate Variability (rMSSD)") + 
   theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
   theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
@@ -61,23 +59,117 @@ y <- df_hrv_age$mean_hrv
 #use correct operator for matrix multiplcation
 #also solve can be used because we have a square matrix after multiplying X for its transpose
 B_hat <- (solve(t(X)%*%X) %*% t(X)) %*% y
-
 print(B_hat)
 
 #lm package 
-summary(lm(mean_hrv ~ age, data = df_hrv_age))$coefficients
+lm_coefficients <- summary(lm(mean_hrv ~ age, data = df_hrv_age))$coefficients
+print(lm_coefficients)
+
+#plot
+p1 <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
+  scale_x_continuous("Age") + 
+  scale_y_continuous("Heart Rate Variability (rMSSD)") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_abline(intercept = B_hat[1], slope = B_hat[2], col = "darkred") +
+  ggtitle("Manual implementation")
+p2 <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
+  scale_x_continuous("Age") + 
+  scale_y_continuous("Heart Rate Variability (rMSSD)") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_abline(intercept = lm_coefficients[1], slope = lm_coefficients[2], col = "darkred") +
+  ggtitle("lm package")
+p1
+p2
+
+
+#2 - Gradient descent
+#define cost function
+cost <- function(theta_temp)
+{
+  return (sum(((X%*%theta_temp)-y)^2)/(2*m))
+}
+
+#initialize parameters
+alpha <- 0.0001
+iterations <- 1000000
+theta<- c(0, 0)
+
+#samples
+m <- nrow(X)
+
+#gradient descent
+history <- matrix(NA, iterations, 3) #theta1, theta2, cost
+cost_history <- c()
+for(i in 1:iterations)
+{
+  theta[1] <- theta[1] - alpha * (1/m) * sum(((X %*% theta) - y))
+  theta[2] <- theta[2] - alpha * (1/m) * sum(((X %*% theta) - y) * X[,2])
+  history[i, ] <- c(theta[1], theta[2], cost(theta))
+}
+
+p1 <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
+  scale_x_continuous("Age") + 
+  scale_y_continuous("Heart Rate Variability (rMSSD)") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_abline(intercept = history[1, 1], slope = history[1, 2], col = "darkred") +
+  ggtitle("Gradient descent, first iteration")
+
+p2 <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
+  scale_x_continuous("Age") + 
+  scale_y_continuous("Heart Rate Variability (rMSSD)") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_abline(intercept = history[iterations, 1], slope = history[iterations, 2], col = "darkred") +
+  ggtitle("Gradient descent, last iteration")
+#parameters estimates
+p1
+p2
+
+#parameters space
+df_history <- data.frame(cbind(history, 1:nrow(history)))
+colnames(df_history) <- c("theta0", "theta1", "cost", "iteration")
+
+p3 <- ggplot(df_history, aes(theta0, theta1)) + geom_path() +
+  #scale_color_manual(values = c("orange", "purple")) + 
+  scale_x_continuous("Theta 0") + 
+  #stat_smooth(method = "lm") +
+  scale_y_continuous("Theta 1") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position="none") +
+  ggtitle("Parameters theta")
+#parameters space
+p3
+
+#cost function
+p4 <- ggplot(df_history, aes(iteration, cost)) + geom_path() +
+  #scale_color_manual(values = c("orange", "purple")) + 
+  scale_x_continuous("Iterations") + 
+  #stat_smooth(method = "lm") +
+  scale_y_continuous("Cost") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position="none") +
+  ggtitle("Cost function")
+p4
 
 
 
 
-
-
-
-
-
-
-
-
-
+As we can see from the results obtained in this post, especially for simple toy examples, 
+the three methods return basically the same solution. Especially considering the never ending 
+discussions between frequentists and Bayesians, deciding which way to go might be more of a philosophical 
+question than anything else. However, there are clear advantages and disadvantages to each one of 
+these techniques, that I will try to summarize here:
+  
+  
+  CHECK ALSO MY NOTES ON THE NOTEBOOK
 
 
