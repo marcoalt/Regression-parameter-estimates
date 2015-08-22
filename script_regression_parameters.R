@@ -65,7 +65,7 @@ print(B_hat)
 lm_coefficients <- summary(lm(mean_hrv ~ age, data = df_hrv_age))$coefficients
 print(lm_coefficients)
 
-#plot
+#plot scatterplot and regression line
 p1 <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
   scale_x_continuous("Age") + 
   scale_y_continuous("Heart Rate Variability (rMSSD)") + 
@@ -87,6 +87,9 @@ p2
 
 
 #2 - Gradient descent
+X <- cbind(rep(1, length(df_hrv_age$age)), df_hrv_age$age)
+y <- df_hrv_age$mean_hrv
+
 #define cost function
 cost <- function(theta_temp)
 {
@@ -137,28 +140,177 @@ df_history <- data.frame(cbind(history, 1:nrow(history)))
 colnames(df_history) <- c("theta0", "theta1", "cost", "iteration")
 
 p3 <- ggplot(df_history, aes(theta0, theta1)) + geom_path() +
-  #scale_color_manual(values = c("orange", "purple")) + 
   scale_x_continuous("Theta 0") + 
-  #stat_smooth(method = "lm") +
   scale_y_continuous("Theta 1") + 
   theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
   theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
   theme(legend.position="none") +
   ggtitle("Parameters theta")
-#parameters space
 p3
 
 #cost function
 p4 <- ggplot(df_history, aes(iteration, cost)) + geom_path() +
-  #scale_color_manual(values = c("orange", "purple")) + 
   scale_x_continuous("Iterations") + 
-  #stat_smooth(method = "lm") +
   scale_y_continuous("Cost") + 
   theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
   theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
   theme(legend.position="none") +
   ggtitle("Cost function")
 p4
+
+
+
+#3 - MCMC - Metropolis Hastings
+set.seed(1984)
+x <- df_hrv_age$age
+y <- df_hrv_age$mean_hrv
+
+#define likelihood and posterior, then multiply them to get the posterior
+#likelihood
+likelihood <- function(beta1, beta0, sigma){
+  pred <- beta1*x + beta0
+  likelihood <- sum(dnorm(y, mean = pred, sd = sigma, log = TRUE))
+  return(likelihood)   
+}
+# Prior distribution (uniforms)
+prior <- function(beta1, beta0, sigma){
+  prior <- sum(dunif(beta1, min=-200, max=200, log = TRUE), 
+               dunif(beta0, min=-200, max=200, log = TRUE),
+               dunif(sigma, min=0, max=10000, log = TRUE))
+  return (prior)
+}
+posterior <- function(beta1, beta0, sigma){
+  return (likelihood(beta1, beta0, sigma) + prior(beta1, beta0, sigma))
+}
+
+#Metropolis-Hasting algorithm
+#initialize parameters
+startvalue = c(1, 1, 1)
+iterations <- 100000
+chain = array(dim = c(iterations+1, 3)) #3 parameters
+chain[1,] = startvalue
+for (i in 1:iterations){
+  #draw from a normal proposal function the three elements, based on the current position
+  proposal <- rnorm(3, mean = c(chain[i, 1], chain[i, 2], chain[i, 3]), sd= c(0.2, 1, 0.5))
+  acceptance = exp(posterior(proposal[1], proposal[2], proposal[3]) - #posterior value at the new parameters values
+                 posterior(chain[i, 1], chain[i, 2], chain[i, 3])) #posterior value at the current parameters values
+  if (runif(1) < acceptance){ #on the long run, make the move with probability "acceptance"
+    chain[i+1,] <- proposal #make the move
+  }else{
+    chain[i+1,] = chain[i,] #stay where you are
+  }
+}
+#remove first samples
+burnIn = 10000
+chain <- chain[-(1:burnIn), ]
+df_chain <- data.frame(chain)
+colnames(df_chain) <- c("b1", "b0", "sigma")
+df_chain[, "samples"] <- 1:nrow(df_chain)
+
+mean(df_chain$b0)
+mean(df_chain$b1)
+
+#plot parameter estimates and samples from the chain
+p1 <- ggplot(df_chain, aes(b1)) + geom_histogram() + 
+  scale_x_continuous("Value") + 
+  scale_y_continuous("Count") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_vline(xintercept = mean(df_chain$b1), col = "red") +
+  ggtitle("b1")
+p2 <- ggplot(df_chain, aes(b0)) + geom_histogram() + 
+  scale_x_continuous("Value") + 
+  scale_y_continuous("Count") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_vline(xintercept = mean(df_chain$b0), col = "red") +
+  ggtitle("b0")
+p3 <- ggplot(df_chain, aes(sigma)) + geom_histogram() + 
+  scale_x_continuous("Value") + 
+  scale_y_continuous("Count") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_vline(xintercept = mean(df_chain$sigma), col = "red") +
+  ggtitle("sigma")
+
+p4 <- ggplot(df_chain, aes(samples, b1)) + geom_line() + 
+  scale_x_continuous("Samples") + 
+  scale_y_continuous("b1") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  ggtitle("Chain samples - b1")
+p5 <- ggplot(df_chain, aes(samples, b0)) + geom_line() + 
+  scale_x_continuous("Samples") + 
+  scale_y_continuous("b0") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  ggtitle("Chain samples - b0")
+p6 <- ggplot(df_chain, aes(samples, sigma)) + geom_line() + 
+  scale_x_continuous("Samples") + 
+  scale_y_continuous("sigma") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  ggtitle("Chain samples - sigma")
+
+#sampler exploration of the parameter's space
+ggplot(df_chain, aes(b0, b1)) + geom_path() + 
+  scale_x_continuous("b0") + 
+  scale_y_continuous("b1") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1))
+
+
+
+
+
+####4 - JAGS
+library(rjags)
+library(coda)
+set.seed(1984)
+
+#parameters definition
+x <- df_hrv_age$age
+y <- df_hrv_age$mean_hrv
+N <- length(y)
+
+#estimation
+jags <- jags.model(paste(dir.wd, "model_jags.R", sep = ""),
+                   data = list("y" = y,
+                               "x" = x,
+                               "N" = N),
+                   n.chains = 4,
+                   n.adapt = 1000)
+
+mcmc_samples <- coda.samples(jags,
+                             c("b0", "b1", "sigma"),
+                             5000)
+
+ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() + 
+  scale_x_continuous("Age") + 
+  scale_y_continuous("Heart Rate Variability (rMSSD)") + 
+  theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
+  theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
+  theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
+  geom_abline(intercept = summary(mcmc_samples)$statistics[1, 1], slope = summary(mcmc_samples)$statistics[2, 1], col = "darkred") +
+  ggtitle("MCMC, Gibbs sampling")
+
+
+
+
+
+
+
+
+
+
+
 
 
 
