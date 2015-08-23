@@ -28,14 +28,14 @@ scatter <- ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() +
   theme(legend.position = c(1, 1), legend.justification = c(1, 1))
 
 # marginal density of x - plot on top
-plot_top <- ggplot(df_hrv_age, aes(age)) + geom_density(alpha = 0.5) + 
+plot_top <- ggplot(df_hrv_age, aes(age)) + geom_histogram() + 
   scale_x_continuous("Age") + 
   theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
   theme(plot.margin = unit(c(margin_plots,margin_plots,margin_plots,margin_plots), "cm")) +
   theme(legend.position = "none")  
 
 # marginal density of y - plot on the right
-plot_right <- ggplot(df_hrv_age, aes(mean_hrv)) + geom_density(alpha = 0.5) + 
+plot_right <- ggplot(df_hrv_age, aes(mean_hrv)) + geom_histogram() + 
   coord_flip()  + 
   scale_x_continuous("Heart Rate Variability (rMSSD)") + 
   theme(panel.background = element_rect(fill = 'ghostwhite', colour = 'ghostwhite')) +
@@ -300,11 +300,6 @@ ggplot(df_hrv_age, aes(age, mean_hrv)) + geom_point() +
   theme(legend.position = c(1, 1), legend.justification = c(1, 1)) +
   geom_abline(intercept = summary(mcmc_samples)$statistics[1, 1], slope = summary(mcmc_samples)$statistics[2, 1], col = "darkred") +
   ggtitle("MCMC, Gibbs sampling")
-
-
-
-
-
 
 
 
